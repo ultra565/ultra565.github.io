@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>하트 김장환님 간병 스케줄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #e8635a;
+    --primary-light: #fdecea;
+    --primary-mid: #f5a49f;
+    --success: #2e9e6b;
+    --success-light: #e6f6ef;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --info: #2563eb;
+    --info-light: #eff6ff;
+    --bg: #f8f7f5;
+    --surface: #ffffff;
+    --border: #e8e4de;
+    --border-strong: #ccc7bf;
+    --text: #1a1714;
+    --text-2: #6b6560;
+    --text-3: #a09b95;
+    --sleep-bg: #f0ede8;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
+  
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px 0;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .heart-icon { font-size: 20px; }
+  .header-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  .header-sub { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .tab-bar { display: flex; gap: 0; }
+  .tab-btn {
+    flex: 1; padding: 9px 0; font-size: 12px; font-weight: 500;
+    border: none; background: transparent; cursor: pointer;
+    color: var(--text-2); border-bottom: 2.5px solid transparent;
+    font-family: 'Noto Sans KR', sans-serif; transition: all .2s;
+  }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* ACTION BAR */
+  .action-wrap {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 8px 12px 6px;
+  }
+  .action-bar { display: flex; gap: 6px; margin-bottom: 5px; }
+  .action-btn {
+    flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 500;
+    border-radius: var(--radius-sm); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 4px;
+    font-family: 'Noto Sans KR', sans-serif; transition: all .15s;
+    border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-2);
+  }
+  .action-btn.reg { border-color: var(--success); color: var(--success); }
+  .action-btn.chg { border-color: var(--warning); color: var(--warning); }
+  .action-btn.del { border-color: var(--danger); color: var(--danger); }
+  .action-btn.reg:active { background: var(--success-light); }
+  .action-btn.chg:active { background: var(--warning-light); }
+  .action-btn.del:active { background: var(--danger-light); }
+  .action-btn.disabled { opacity: .35; pointer-events: none; }
+  .sel-info { font-size: 10.5px; color: var(--text-3); }
+  .sel-info strong { color: var(--primary); }
+
+  /* WEEK NAV */
+  .week-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-btn {
+    background: none; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 5px 12px;
+    font-size: 12px; cursor: pointer; color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .nav-btn:active { background: var(--bg); }
+  .week-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  /* GRID */
+  .grid-scroll { overflow-x: auto; overflow-y: visible; }
+  .grid-table { border-collapse: collapse; width: 100%; min-width: 320px; }
+  .grid-table th {
+    font-size: 10px; font-weight: 500; color: var(--text-2);
+    padding: 5px 2px; text-align: center;
+    border: 1px solid var(--border); background: var(--bg);
+    position: sticky; top: 0;
+  }
+  .grid-table th.th-today { background: var(--info-light); color: var(--info); }
+  .th-sun { color: #dc2626 !important; }
+  .th-sat { color: var(--info) !important; }
+  td.time-col {
+    font-size: 9px; color: var(--text-3); padding: 2px 4px;
+    text-align: right; border: 1px solid var(--border);
+    background: var(--bg); white-space: pre-line;
+    vertical-align: middle; min-width: 36px; line-height: 1.3;
+  }
+  td.time-col.sleep-tc { background: var(--sleep-bg); font-size: 8.5px; }
+  td.cell {
+    border: 1px solid var(--border); cursor: pointer;
+    vertical-align: middle; padding: 2px 3px;
+    height: 30px; transition: background .1s;
+  }
+  td.cell.sleep-cell { height: 38px; background: var(--sleep-bg); }
+  td.cell.today-cell { background: color-mix(in srgb, var(--info-light) 40%, white); }
+  td.cell.sleep-cell.today-cell { background: color-mix(in srgb, var(--info-light) 30%, var(--sleep-bg)); }
+  td.cell.has-entry { background: var(--success-light); }
+  td.cell.selected { background: var(--warning-light) !important; outline: 2px solid var(--warning) inset; }
+  td.cell:active { opacity: .7; }
+  .entry-name {
+    font-size: 8px; color: var(--success); font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;
+  }
+  .entry-note {
+    font-size: 7px; color: var(--text-3);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    padding: 6px 12px; border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; border: 1px solid var(--border); }
+
+  /* MONTHLY CALENDAR */
+  .cal-wrap { padding: 10px 12px; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-title { font-size: 15px; font-weight: 600; }
+  .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; margin-bottom: 4px; }
+  .cal-dow div { text-align: center; font-size: 10px; font-weight: 500; color: var(--text-2); padding: 3px 0; }
+  .cal-dow div:first-child { color: #dc2626; }
+  .cal-dow div:last-child { color: var(--info); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm); font-size: 13px; cursor: pointer;
+    border: 1px solid transparent; transition: all .15s; flex-direction: column; gap: 2px;
+    position: relative;
+  }
+  .cal-day:active { opacity: .7; }
+  .cal-day.empty { cursor: default; }
+  .cal-day.other { color: var(--text-3); }
+  .cal-day.cal-today { border-color: var(--info); color: var(--info); font-weight: 600; }
+  .cal-day.cal-selected { background: var(--warning-light); border-color: var(--warning); }
+  .cal-day.cal-has { background: var(--success-light); }
+  .cal-day.cal-has.cal-selected { background: var(--warning-light); border-color: var(--warning); }
+  .cal-day.cal-sun { color: #dc2626; }
+  .cal-day.cal-sat { color: var(--info); }
+  .cal-day .cal-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--success); }
+
+  /* MODAL */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border-radius: 18px 18px 0 0;
+    padding: 20px 16px 36px; width: 100%; max-width: 480px;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .modal-sel-info {
+    font-size: 11px; color: var(--text-2); background: var(--bg);
+    border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .field-label { font-size: 11px; color: var(--text-2); margin-bottom: 4px; margin-top: 10px; }
+  .modal-box input, .modal-box textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 12px; font-size: 14px; background: var(--bg);
+    color: var(--text); outline: none; font-family: 'Noto Sans KR', sans-serif;
+  }
+  .modal-box input:focus, .modal-box textarea:focus { border-color: var(--primary); }
+  .modal-box textarea { resize: none; height: 64px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-actions button {
+    flex: 1; padding: 12px; border-radius: var(--radius); border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif; transition: opacity .15s;
+  }
+  .modal-actions button:active { opacity: .8; }
+  .btn-cancel { background: var(--bg); color: var(--text-2); }
+  .btn-ok-reg { background: var(--success); color: white; }
+  .btn-ok-chg { background: var(--warning); color: white; }
+  .btn-ok-del { background: var(--danger); color: white; }
+
+  /* LOADING */
+  .loading { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 13px; }
+  
+  /* FIREBASE STATUS */
+  .fb-status {
+    font-size: 10px; padding: 3px 8px; border-radius: 20px;
+    margin-left: auto; display: flex; align-items: center; gap: 3px;
+  }
+  .fb-status.ok { background: var(--success-light); color: var(--success); }
+  .fb-status.err { background: var(--danger-light); color: var(--danger); }
+  .fb-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <span class="heart-icon">🩺</span>
+    <div>
+      <div class="header-title">하트 김장환님 간병 스케줄</div>
+      <div class="header-sub">가족 간병 일정 공유</div>
+    </div>
+    <div class="fb-status" id="fb-status"><div class="fb-dot"></div><span>연결중</span></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-week" onclick="switchTab('week')">⏰ 시간대별 (주간)</button>
+    <button class="tab-btn" id="tab-month" onclick="switchTab('month')">📅 일별 (월간)</button>
+  </div>
+</div>
+
+<!-- ACTION BAR -->
+<div class="action-wrap">
+  <div class="action-bar">
+    <button class="action-btn reg disabled" id="btn-reg" onclick="openModal('reg')">✚ 간병입력</button>
+    <button class="action-btn chg disabled" id="btn-chg" onclick="openModal('chg')">✎ 간병변경</button>
+    <button class="action-btn del disabled" id="btn-del" onclick="openModal('del')">✕ 간병취소</button>
+  </div>
+  <div class="sel-info" id="sel-info">시간대(날짜)를 선택하면 버튼이 활성화됩니다</div>
+</div>
+
+<!-- WEEK VIEW -->
+<div id="view-week">
+  <div class="week-nav">
+    <button class="nav-btn" onclick="moveWeek(-1)">◀ 이전</button>
+    <span class="week-label" id="week-label"></span>
+    <button class="nav-btn" onclick="moveWeek(1)">다음 ▶</button>
+  </div>
+  <div class="grid-scroll">
+    <div id="grid-wrap"><div class="loading">불러오는 중...</div></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success-light)"></div>간병자 지정</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warning-light);border-color:var(--warning)"></div>선택됨</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sleep-bg)"></div>수면시간</div>
+  </div>
+</div>
+
+<!-- MONTH VIEW -->
+<div id="view-month" style="display:none">
+  <div class="cal-wrap">
+    <div class="cal-header">
+      <button class="nav-btn" onclick="moveMonth(-1)">◀ 이전</button>
+      <span class="cal-title" id="cal-title"></span>
+      <button class="nav-btn" onclick="moveMonth(1)">다음 ▶</button>
+    </div>
+    <div class="cal-dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+  <div class="legend" style="margin:0 12px 12px;border-radius:var(--radius);border:1px solid var(--border)">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success-light)"></div>간병자 지정</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warning-light);border-color:var(--warning)"></div>선택됨</div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// =============================================
+// 🔥 Firebase 설정 (본인 프로젝트 값으로 교체)
+// =============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCdwZQddgmOSqIYxwnJyW0C2pJdjYm6jmM",
+  authDomain: "heart-program-34ada.firebaseapp.com",
+  databaseURL: "https://heart-program-34ada-default-rtdb.firebaseio.com",
+  projectId: "heart-program-34ada",
+  storageBucket: "heart-program-34ada.firebasestorage.app",
+  messagingSenderId: "832153903511",
+  appId: "1:832153903511:web:767d87f11158d8d47ca4d2"
+};
+// =============================================
+
+let db, scheduleRef;
+let scheduleData = {};
+let selectedCells = [];
+let currentTab = 'week';
+let weekOffset = 0;
+let monthOffset = 0;
+const today = new Date();
+const DAYS = ['일','월','화','수','목','금','토'];
+
+// 행 정의
+const ROWS = [
+  { key: 'sleep_am', label: '0~8시\n수면', sleep: true },
+  { key: 'h08', label: '8시' },
+  { key: 'h09', label: '9시' },
+  { key: 'h10', label: '10시' },
+  { key: 'h11', label: '11시' },
+  { key: 'h12', label: '12시' },
+  { key: 'h13', label: '13시' },
+  { key: 'h14', label: '14시' },
+  { key: 'h15', label: '15시' },
+  { key: 'h16', label: '16시' },
+  { key: 'h17', label: '17시' },
+  { key: 'h18', label: '18시' },
+  { key: 'h19', label: '19시' },
+  { key: 'h20', label: '20시' },
+  { key: 'h21', label: '21시' },
+  { key: 'sleep_pm', label: '22~24시\n수면', sleep: true },
+];
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function cellKey(ds, rk){ return `${ds}__${rk}`; }
+
+// Firebase 초기화
+try {
+  const app = initializeApp(firebaseConfig);
+  db = getDatabase(app);
+  scheduleRef = ref(db, 'care_schedule_kjh');
+
+  onValue(scheduleRef, (snapshot) => {
+    scheduleData = snapshot.val() || {};
+    setFbStatus(true);
+    renderCurrent();
+  }, (err) => {
+    setFbStatus(false);
+    console.error(err);
+  });
+} catch(e) {
+  setFbStatus(false);
+  console.error('Firebase init error:', e);
+}
+
+function setFbStatus(ok) {
+  const el = document.getElementById('fb-status');
+  el.className = 'fb-status ' + (ok ? 'ok' : 'err');
+  el.innerHTML = `<div class="fb-dot"></div><span>${ok ? '연결됨' : '오프라인'}</span>`;
+}
+
+async function saveCell(ck, entry) {
+  if (!db) { scheduleData[ck] = entry; renderCurrent(); return; }
+  await set(ref(db, `care_schedule_kjh/${ck}`), entry);
+}
+async function deleteCell(ck) {
+  if (!db) { delete scheduleData[ck]; renderCurrent(); return; }
+  await remove(ref(db, `care_schedule_kjh/${ck}`));
+}
+
+// ---- WEEK RENDER ----
+function getWeekStart() {
+  const d = new Date(today);
+  d.setDate(d.getDate() - d.getDay() + weekOffset * 7);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function renderWeek() {
+  const ws = getWeekStart();
+  const dates = Array.from({length:7},(_,i)=>{ const d=new Date(ws); d.setDate(d.getDate()+i); return d; });
+  const todayStr = dateKey(today);
+  const we = new Date(ws); we.setDate(we.getDate()+6);
+  document.getElementById('week-label').textContent =
+    `${ws.getMonth()+1}/${ws.getDate()} ~ ${we.getMonth()+1}/${we.getDate()}`;
+
+  let html = '<table class="grid-table"><thead><tr><th style="min-width:36px;width:36px">시간</th>';
+  dates.forEach(d => {
+    const ds = dateKey(d);
+    const dow = d.getDay();
+    const cls = [ds===todayStr?'th-today':'', dow===0?'th-sun':dow===6?'th-sat':''].filter(Boolean).join(' ');
+    html += `<th class="${cls}">${d.getMonth()+1}/${d.getDate()}<br>${DAYS[dow]}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  ROWS.forEach(row => {
+    html += '<tr>';
+    html += `<td class="time-col${row.sleep?' sleep-tc':''}">${row.label}</td>`;
+    dates.forEach(d => {
+      const ds = dateKey(d);
+      const ck = cellKey(ds, row.key);
+      const entry = scheduleData[ck];
+      const isSel = selectedCells.includes(ck);
+      const isToday = ds === todayStr;
+      const cls = ['cell',
+        row.sleep ? 'sleep-cell' : '',
+        isToday ? 'today-cell' : '',
+        entry ? 'has-entry' : '',
+        isSel ? 'selected' : ''
+      ].filter(Boolean).join(' ');
+      html += `<td class="${cls}" onclick="toggleCell('${ck}')">`;
+      if (entry) {
+        html += `<div class="entry-name">${entry.name}</div>`;
+        if (entry.note) html += `<div class="entry-note">${entry.note}</div>`;
+      }
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('grid-wrap').innerHTML = html;
+}
+
+// ---- MONTH RENDER ----
+function renderMonth() {
+  const d = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  document.getElementById('cal-title').textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
+  const firstDay = d.getDay();
+  const lastDate = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  const todayStr = dateKey(today);
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
+  for (let dt = 1; dt <= lastDate; dt++) {
+    const dd = new Date(d.getFullYear(), d.getMonth(), dt);
+    const ds = dateKey(dd);
+    const dow = dd.getDay();
+    const hasE = hasDayEntry(ds);
+    const isSel = selectedCells.includes(ds);
+    const isToday = ds === todayStr;
+    const cls = ['cal-day',
+      dow===0?'cal-sun':dow===6?'cal-sat':'',
+      isToday?'cal-today':'',
+      hasE?'cal-has':'',
+      isSel?'cal-selected':''
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}" onclick="toggleMonthCell('${ds}')">${dt}`;
+    if (hasE) html += `<div class="cal-dot"></div>`;
+    html += '</div>';
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function hasDayEntry(ds) {
+  return ROWS.some(r => scheduleData[cellKey(ds, r.key)]);
+}
+
+// ---- SELECTION ----
+window.toggleCell = function(ck) {
+  const idx = selectedCells.indexOf(ck);
+  if (idx >= 0) selectedCells.splice(idx, 1); else selectedCells.push(ck);
+  updateActionBar();
+  renderWeek();
+};
+window.toggleMonthCell = function(ds) {
+  const idx = selectedCells.indexOf(ds);
+  if (idx >= 0) selectedCells.splice(idx, 1); else selectedCells.push(ds);
+  updateActionBar();
+  renderMonth();
+};
+
+function updateActionBar() {
+  const n = selectedCells.length;
+  ['btn-reg','btn-chg','btn-del'].forEach(id =>
+    document.getElementById(id).classList.toggle('disabled', n === 0));
+  const el = document.getElementById('sel-info');
+  if (n === 0) el.innerHTML = '시간대(날짜)를 선택하면 버튼이 활성화됩니다';
+  else el.innerHTML = `<strong>${n}개</strong> 선택됨 — 버튼을 눌러 간병자를 지정하세요`;
+}
+
+// ---- TAB / NAV ----
+window.switchTab = function(tab) {
+  currentTab = tab;
+  selectedCells = [];
+  updateActionBar();
+  document.getElementById('tab-week').classList.toggle('active', tab==='week');
+  document.getElementById('tab-month').classList.toggle('active', tab==='month');
+  document.getElementById('view-week').style.display = tab==='week' ? '' : 'none';
+  document.getElementById('view-month').style.display = tab==='month' ? '' : 'none';
+  renderCurrent();
+};
+window.moveWeek = function(dir) { weekOffset += dir; selectedCells=[]; updateActionBar(); renderWeek(); };
+window.moveMonth = function(dir) { monthOffset += dir; selectedCells=[]; updateActionBar(); renderMonth(); };
+
+function renderCurrent() {
+  if (currentTab === 'week') renderWeek(); else renderMonth();
+}
+
+// ---- MODAL ----
+window.openModal = function(mode) {
+  if (selectedCells.length === 0) return;
+  const n = selectedCells.length;
+  const isMonth = currentTab === 'month';
+
+  let selText = '';
+  if (isMonth) {
+    selText = selectedCells.map(ds => {
+      const d = new Date(ds);
+      return `${d.getMonth()+1}/${d.getDate()}(${DAYS[d.getDay()]})`;
+    }).join(', ') + ' (하루 전체)';
+  } else {
+    const labels = selectedCells.slice(0,3).map(ck => {
+      const [ds, rk] = ck.split('__');
+      const d = new Date(ds);
+      const row = ROWS.find(r => r.key === rk);
+      return `${d.getMonth()+1}/${d.getDate()} ${row ? row.label.replace('\n','') : rk}`;
+    });
+    selText = labels.join(', ') + (n > 3 ? ` 외 ${n-3}건` : '');
+  }
+
+  const existEntry = (() => {
+    if (!selectedCells.length) return null;
+    const ck = isMonth ? cellKey(selectedCells[0], ROWS[1].key) : selectedCells[0];
+    return scheduleData[ck] || null;
+  })();
+
+  const titles = {reg:'간병 입력', chg:'간병 변경', del:'간병 취소'};
+  const btnCls = {reg:'btn-ok-reg', chg:'btn-ok-chg', del:'btn-ok-del'};
+  const btnTxt = {reg:'등록', chg:'변경', del:'취소 확인'};
+
+  let form = '';
+  if (mode !== 'del') {
+    form = `
+      <div class="field-label">성명 *</div>
+      <input type="text" id="m-name" placeholder="간병자 이름" value="${mode==='chg'&&existEntry ? existEntry.name : ''}" />
+      <div class="field-label">기타사항 (비고)</div>
+      <textarea id="m-note" placeholder="특이사항, 연락처 등...">${mode==='chg'&&existEntry ? existEntry.note||'' : ''}</textarea>`;
+  } else {
+    form = `<p style="font-size:13px;color:#6b6560;line-height:1.6;margin-top:4px">선택한 시간대의 간병자 배정을 취소합니다.<br>계속하시겠습니까?</p>`;
+  }
+
+  document.getElementById('modal-box').innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">${titles[mode]}</div>
+    <div class="modal-sel-info">${selText}</div>
+    ${form}
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">닫기</button>
+      <button class="${btnCls[mode]}" onclick="confirmAction('${mode}')">${btnTxt[mode]}</button>
+    </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+  if (mode !== 'del') setTimeout(() => document.getElementById('m-name')?.focus(), 150);
+};
+
+window.closeModal = function() { document.getElementById('modal-bg').classList.remove('open'); };
+window.closeModalBg = function(e) { if (e.target === document.getElementById('modal-bg')) closeModal(); };
+
+window.confirmAction = async function(mode) {
+  const isMonth = currentTab === 'month';
+  const cells = isMonth
+    ? selectedCells.flatMap(ds => ROWS.map(r => cellKey(ds, r.key)))
+    : selectedCells.slice();
+
+  if (mode === 'del') {
+    await Promise.all(cells.map(ck => deleteCell(ck)));
+  } else {
+    const name = document.getElementById('m-name')?.value?.trim();
+    if (!name) { alert('성명을 입력해주세요'); return; }
+    const note = document.getElementById('m-note')?.value?.trim() || '';
+    await Promise.all(cells.map(ck => saveCell(ck, { name, note, ts: Date.now() })));
+  }
+  selectedCells = [];
+  closeModal();
+  updateActionBar();
+};
+
+// 초기 렌더 (Firebase 연결 전에도 빈 그리드 표시)
+renderCurrent();
+</script>
+</body>
+</html>
