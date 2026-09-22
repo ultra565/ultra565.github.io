@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>화면 문제 스캐너</title>
+<style>
+  :root{
+    --bg:#12141a; --surface:#1c1f28; --surface-2:#262a36;
+    --ink:#eceef3; --muted:#9aa0ad; --line:#333747;
+    --accent:#f2b53c; --blue:#4ea1ff; --green:#54d99a; --red:#ff8a8a;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *,*::before,*::after{box-sizing:inherit;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; -webkit-font-smoothing:antialiased; line-height:1.5; display:flex; flex-direction:column; min-height:100%}
+  header{padding:14px 16px 6px; display:flex; align-items:center; gap:8px}
+  header h1{font-size:18px; font-weight:700; letter-spacing:-.02em; margin-right:auto}
+  .chip{font-size:11px; font-weight:600; padding:4px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted); display:flex; align-items:center; gap:5px; white-space:nowrap}
+  .chip i{width:7px; height:7px; border-radius:50%; background:var(--muted); display:block}
+  .chip.ok{color:var(--green); border-color:rgba(84,217,154,.4)} .chip.ok i{background:var(--green)}
+  .chip.bad{color:var(--red); border-color:rgba(255,138,138,.4)} .chip.bad i{background:var(--red)}
+  .chip.wait i{background:var(--accent); animation:pulse 1s infinite}
+  .gear{background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:9px; width:34px; height:34px; font-size:16px; cursor:pointer}
+
+  main{flex:1; display:flex; flex-direction:column; gap:11px; padding:6px 14px 20px}
+  .stage{position:relative; width:100%; aspect-ratio:4/3; max-height:42vh; background:#0a0b0f; border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center}
+  .stage video{width:100%; height:100%; object-fit:cover}
+  .stage.hide-video video{display:none}
+  .frame{position:absolute; inset:12px; border:2px solid rgba(242,181,60,.5); border-radius:10px; pointer-events:none; transition:border-color .2s}
+  .stage.locking .frame{border-color:var(--accent)}
+  .stage.reading .frame{border-color:var(--blue)}
+  .stage.hit .frame{border-color:var(--green)}
+  .pill{position:absolute; left:50%; bottom:10px; transform:translateX(-50%); background:rgba(10,11,15,.85); border:1px solid var(--line); backdrop-filter:blur(6px); padding:6px 13px; border-radius:999px; font-size:12.5px; display:flex; align-items:center; gap:8px; white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .pill.hold .dot{background:var(--accent);animation:pulse 1s infinite}
+  .pill.read .dot{background:var(--blue);animation:pulse .7s infinite}
+  .pill.same .dot{background:var(--green)}
+  .pill.pause .dot{background:var(--red)}
+  @keyframes pulse{50%{opacity:.3}}
+  .placeholder{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:22px; color:var(--muted); font-size:14px}
+  .stage:not(.hide-video) .placeholder{display:none}
+  .stage:not(.hide-video).manual-mode .pill{display:none}
+
+  .seg-row{display:flex; gap:8px; flex-wrap:wrap}
+  .seg{display:flex; gap:5px; background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:4px; flex:1; min-width:150px}
+  .seg button{background:transparent; border:none; padding:8px; font-size:13px; color:var(--muted); flex:1; border-radius:8px; font:inherit; font-weight:600; cursor:pointer}
+  .seg button.on{background:var(--surface-2); color:var(--ink)}
+
+  .primary{font:inherit; font-weight:700; border:none; border-radius:13px; padding:15px; cursor:pointer; background:var(--blue); color:#06121f; font-size:16px}
+  .primary:disabled{opacity:.4; background:var(--surface-2); color:var(--muted)}
+  .filebtn{position:relative; overflow:hidden; font:inherit; font-weight:600; border-radius:13px; padding:13px; text-align:center; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); cursor:pointer; display:none}
+  .filebtn.show{display:block}
+  .filebtn input{position:absolute; inset:0; opacity:0}
+
+  .answer{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:15px; min-height:88px; display:flex; flex-direction:column; gap:8px}
+  .answer .label{font-size:12px; color:var(--muted)}
+  .answer.result{border-color:rgba(242,181,60,.5); box-shadow:0 0 0 1px rgba(242,181,60,.15)}
+  .answer.result .label{color:var(--accent)}
+  .answer .body{font-size:18px; line-height:1.55; white-space:pre-wrap; word-break:break-word}
+  .answer .body .empty{color:var(--muted); font-size:14px; white-space:normal}
+  .alist{display:flex; flex-direction:column; gap:8px; max-height:34vh; overflow:auto; -webkit-overflow-scrolling:touch}
+  .item{display:flex; gap:10px; align-items:flex-start; background:var(--surface-2); border:1px solid var(--line); border-radius:11px; padding:10px 11px}
+  .item .no{flex:none; min-width:28px; height:26px; padding:0 7px; border-radius:7px; background:rgba(242,181,60,.16); color:var(--accent); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center}
+  .item .col{min-width:0}
+  .item .ans{font-size:17px; font-weight:600; line-height:1.4; word-break:break-word}
+  .item .why{font-size:13.5px; color:var(--muted); margin-top:3px; line-height:1.5; white-space:pre-wrap; word-break:break-word}
+  .note{font-size:13px; color:var(--muted); line-height:1.5}
+  .err{color:var(--red); font-size:14px; white-space:normal}
+  .spinner{width:22px; height:22px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:6px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hint{font-size:11.5px; color:var(--muted); text-align:center; padding:0 4px}
+  canvas{display:none}
+
+  /* Setup overlay */
+  .setup{position:fixed; inset:0; background:rgba(10,11,15,.94); backdrop-filter:blur(4px); z-index:50; display:none; align-items:center; justify-content:center; padding:22px}
+  .setup.show{display:flex}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; width:100%; max-width:420px; display:flex; flex-direction:column; gap:12px}
+  .card h2{font-size:17px}
+  .card p{font-size:13px; color:var(--muted); line-height:1.55}
+  .card a{color:var(--blue)}
+  .card input{font:inherit; padding:12px; border-radius:11px; border:1px solid var(--line); background:var(--bg); color:var(--ink)}
+  .card .save{font:inherit; font-weight:700; border:none; border-radius:11px; padding:13px; background:var(--blue); color:#06121f; cursor:pointer}
+  .card .clear{font:inherit; border:none; background:transparent; color:var(--muted); font-size:12px; cursor:pointer; text-decoration:underline}
+  @media (prefers-reduced-motion:reduce){.spinner,.dot,.chip i{animation:none}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>화면 문제 스캐너</h1>
+    <span class="chip wait" id="camChip"><i></i>카메라</span>
+    <span class="chip wait" id="keyChip"><i></i>키</span>
+    <button class="gear" id="gear" title="설정">⚙</button>
+  </header>
+
+  <main>
+    <div class="stage hide-video" id="stage">
+      <video id="video" playsinline autoplay muted></video>
+      <div class="frame"></div>
+      <div class="pill" id="pill"><span class="dot"></span><span id="pilltext">준비 중…</span></div>
+      <div class="placeholder" id="ph"><div id="phtext">카메라를 준비하는 중…</div></div>
+    </div>
+
+    <div class="seg-row">
+      <div class="seg" id="scanSeg">
+        <button data-scan="auto" class="on">자동 스캔</button>
+        <button data-scan="manual">수동</button>
+      </div>
+      <div class="seg" id="detailSeg">
+        <button data-detail="answer" class="on">정답만</button>
+        <button data-detail="explain">풀이 포함</button>
+      </div>
+      <div class="seg" id="speedSeg">
+        <button data-speed="quick" class="on">빠르게</button>
+        <button data-speed="default">정확하게</button>
+      </div>
+    </div>
+
+    <button class="primary" id="primary" disabled>스캔 일시정지</button>
+    <label class="filebtn" id="filebtn">카메라가 안 되면 · 사진 찍기<input type="file" id="file" accept="image/*" capture="environment"></label>
+
+    <div class="answer" id="answer">
+      <div class="label">정답</div>
+      <div class="body"><span class="empty">모니터를 화면에 담아 잠깐 고정하면 정답이 나타납니다. 컴퓨터 화면을 넘기면 자동으로 다시 인식합니다.</span></div>
+    </div>
+
+    <p class="hint">모니터의 문제 영역이 프레임 안에 또렷이 들어오게 하세요. 반사광이 적을수록 정확합니다.</p>
+  </main>
+
+  <div class="setup" id="setup">
+    <div class="card">
+      <h2>API 키 설정</h2>
+      <p>이 앱은 <b>본인의 Anthropic API 키</b>로 직접 인식합니다. 키는 <b>이 기기(브라우저)에만</b> 저장되며 서버로 전송되지 않습니다.<br>키 발급: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a></p>
+      <input id="keyInput" type="password" placeholder="sk-ant-..." autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="save" id="saveKey">저장하고 시작</button>
+      <button class="clear" id="clearKey">저장된 키 삭제</button>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <canvas id="fp"></canvas>
+
+<script>
+const KEY_STORE='anthropic_api_key';
+const MODELS={ quick:'claude-haiku-4-5-20251001', default:'claude-sonnet-5' };
+const $=id=>document.getElementById(id);
+const video=$('video'),stage=$('stage'),phtext=$('phtext'),primary=$('primary'),filebtn=$('filebtn'),fileInput=$('file');
+const canvas=$('canvas'),fpCanvas=$('fp'),answer=$('answer'),pill=$('pill'),pilltext=$('pilltext');
+const camChip=$('camChip'),keyChip=$('keyChip');
+const setup=$('setup'),keyInput=$('keyInput');
+
+let streaming=false,scanMode='auto',detail='answer',speed='quick',paused=false,apiKey='';
+
+function setChip(el,state,label){ el.className='chip '+state; el.innerHTML='<i></i>'+label; }
+
+/* ---- API 키 ---- */
+function loadKey(){ try{ return localStorage.getItem(KEY_STORE)||''; }catch(e){ return ''; } }
+function saveKey(k){ try{ localStorage.setItem(KEY_STORE,k); }catch(e){} }
+function openSetup(){ keyInput.value=apiKey; setup.classList.add('show'); }
+function closeSetup(){ setup.classList.remove('show'); }
+$('gear').onclick=openSetup;
+$('saveKey').onclick=()=>{ const k=keyInput.value.trim(); if(!k){ keyInput.focus(); return; } apiKey=k; saveKey(k); setChip(keyChip,'ok','키'); closeSetup(); };
+$('clearKey').onclick=()=>{ try{ localStorage.removeItem(KEY_STORE); }catch(e){} apiKey=''; setChip(keyChip,'bad','키 없음'); };
+
+/* ---- 세그먼트 ---- */
+function seg(id,set){ $(id).addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; set(b.dataset); [...b.parentElement.children].forEach(x=>x.classList.toggle('on',x===b)); }); }
+seg('scanSeg',d=>{ scanMode=d.scan; applyMode(); });
+seg('detailSeg',d=>{ detail=d.detail; });
+seg('speedSeg',d=>{ speed=d.speed; });
+function applyMode(){
+  const auto = scanMode==='auto' && streaming;
+  stage.classList.toggle('manual-mode', !auto);
+  primary.textContent = scanMode==='manual' ? '문제 인식' : (paused ? '스캔 재개' : '스캔 일시정지');
+  primary.disabled = (scanMode==='auto' && !streaming);
+}
+primary.addEventListener('click',()=>{
+  if(scanMode==='manual'){ const b=grab(); if(b) analyze(b); }
+  else{ paused=!paused; if(paused) setPill('pause','일시정지'); applyMode(); }
+});
+
+/* ---- 카메라 ---- */
+async function initCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){ camFail('이 브라우저는 실시간 카메라를 지원하지 않아요.'); return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }, audio:false });
+    video.srcObject=stream; await video.play();
+    streaming=true; stage.classList.remove('hide-video'); setChip(camChip,'ok','카메라'); applyMode(); startScanLoop();
+  }catch(err){ camFail('카메라 권한이 막혀 있어요. https 주소로 열었는지, 권한 허용을 눌렀는지 확인해 주세요.'); }
+}
+function camFail(msg){
+  streaming=false; stage.classList.add('hide-video','manual-mode'); phtext.textContent=msg; setChip(camChip,'bad','카메라 차단');
+  scanMode='manual'; [...$('scanSeg').children].forEach(x=>x.classList.toggle('on',x.dataset.scan==='manual'));
+  filebtn.classList.add('show'); primary.textContent='문제 인식'; primary.disabled=false;
+}
+
+/* ---- 프레임 → base64 ---- */
+function grab(){
+  if(!streaming || !video.videoWidth) return null;
+  const w=video.videoWidth,h=video.videoHeight,max=1280; let tw=w,th=h;
+  if(Math.max(w,h)>max){ const s=max/Math.max(w,h); tw=Math.round(w*s); th=Math.round(h*s); }
+  canvas.width=tw; canvas.height=th; canvas.getContext('2d').drawImage(video,0,0,tw,th);
+  return canvas.toDataURL('image/jpeg',0.85).split(',')[1];
+}
+
+/* ---- 자동 스캔: 화면 고정 감지 ---- */
+const FW=48,FH=36,SAMPLE_MS=160,STABLE_FRAMES=5,MOVE_DIFF=7,NEW_SCENE_DIFF=11,MIN_VAR=10,COOLDOWN=1800;
+let prevFP=null,answeredFP=null,stableCount=0,busy=false,cooldownUntil=0,loopTimer=null;
+fpCanvas.width=FW; fpCanvas.height=FH;
+const fpCtx=fpCanvas.getContext('2d',{willReadFrequently:true});
+function fingerprint(){
+  fpCtx.drawImage(video,0,0,FW,FH);
+  const px=fpCtx.getImageData(0,0,FW,FH).data,n=FW*FH,lum=new Float32Array(n); let mean=0;
+  for(let i=0,j=0;i<px.length;i+=4,j++){ const v=0.299*px[i]+0.587*px[i+1]+0.114*px[i+2]; lum[j]=v; mean+=v; }
+  mean/=n; let vs=0; for(let j=0;j<n;j++){ const d=lum[j]-mean; vs+=d*d; }
+  return { data:lum, sd:Math.sqrt(vs/n) };
+}
+function fpDiff(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=Math.abs(a[i]-b[i]); return s/a.length; }
+function setPill(cls,text){ pill.className='pill '+cls; pilltext.textContent=text; stage.classList.toggle('locking',cls==='hold'); stage.classList.toggle('reading',cls==='read'); stage.classList.toggle('hit',cls==='same'); }
+function startScanLoop(){ if(loopTimer) return; loopTimer=setInterval(tick,SAMPLE_MS); }
+function tick(){
+  if(!streaming || scanMode!=='auto' || !video.videoWidth) return;
+  if(paused){ setPill('pause','일시정지'); return; }
+  if(!apiKey){ setPill('','키 설정이 필요해요'); return; }
+  const fp=fingerprint();
+  if(prevFP) stableCount = fpDiff(fp.data,prevFP)<MOVE_DIFF ? stableCount+1 : 0;
+  prevFP=fp.data;
+  const now=Date.now();
+  if(busy){ setPill('read','읽는 중…'); return; }
+  if(now<cooldownUntil) return;
+  if(fp.sd<MIN_VAR){ setPill('','모니터를 비추세요'); stableCount=0; return; }
+  if(stableCount>=STABLE_FRAMES){
+    if(!answeredFP || fpDiff(fp.data,answeredFP)>NEW_SCENE_DIFF){ answeredFP=fp.data.slice(); const b=grab(); if(b) analyze(b); }
+    else setPill('same','읽음 · 화면을 넘기면 다시 인식');
+  }else setPill('hold','고정하세요…');
+}
+
+/* ---- 파일 대체 입력 ---- */
+fileInput.addEventListener('change',e=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  const img=new Image();
+  img.onload=()=>{ const max=1280; let tw=img.naturalWidth,th=img.naturalHeight;
+    if(Math.max(tw,th)>max){ const s=max/Math.max(tw,th); tw=Math.round(tw*s); th=Math.round(th*s); }
+    canvas.width=tw; canvas.height=th; canvas.getContext('2d').drawImage(img,0,0,tw,th);
+    analyze(canvas.toDataURL('image/jpeg',0.85).split(',')[1]); URL.revokeObjectURL(img.src); };
+  img.src=URL.createObjectURL(f); fileInput.value='';
+});
+
+/* ---- 렌더 ---- */
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
+function setAnswerRaw(html,isResult){ answer.classList.toggle('result',!!isResult); answer.querySelector('.body').innerHTML=html; }
+function showLoading(){ answer.classList.remove('result'); answer.querySelector('.label').textContent='정답'; answer.querySelector('.body').innerHTML='<div class="spinner"></div><div style="text-align:center;color:var(--muted);font-size:13px">문제를 읽는 중…</div>'; }
+function cleanJson(t){ t=t.replace(/```json|```/g,'').trim(); const a=t.indexOf('{'),b=t.lastIndexOf('}'); return (a>=0&&b>a)? t.slice(a,b+1): t; }
+function renderItems(obj){
+  const label=answer.querySelector('.label'),body=answer.querySelector('.body');
+  const items=Array.isArray(obj?.items)?obj.items:[];
+  if(!items.length){ answer.classList.remove('result'); label.textContent='결과'; body.innerHTML='<span class="empty">'+escapeHtml(obj?.note||'문제를 인식하지 못했어요. 더 또렷하게 비춰 주세요.')+'</span>'; return; }
+  answer.classList.add('result'); label.textContent = items.length>1 ? ('정답 · 문제 '+items.length+'개') : '정답';
+  let h='<div class="alist">';
+  for(const it of items){ h+='<div class="item"><div class="no">'+escapeHtml(it.no||'?')+'</div><div class="col"><div class="ans">'+escapeHtml(it.answer||'')+'</div>'+(it.why?'<div class="why">'+escapeHtml(it.why)+'</div>':'')+'</div></div>'; }
+  h+='</div>'; if(obj.note) h+='<div class="note">'+escapeHtml(obj.note)+'</div>'; body.innerHTML=h;
+}
+
+/* ---- 분석 (Anthropic 직접 호출) ---- */
+async function analyze(b64){
+  if(!apiKey){ openSetup(); return; }
+  busy=true; setPill('read','읽는 중…'); showLoading();
+  const prompt =
+`이미지는 컴퓨터 모니터를 촬영한 사진이야. 화면에 보이는 모든 문제를 정확히 읽고 한국어로 답해.
+한 화면에 문제가 여러 개일 수 있으니 빠짐없이 처리해.
+
+아래 JSON "하나"만 출력해. 코드펜스·설명·다른 텍스트 금지.
+{"items":[{"no":"문제번호","answer":"정답","why":"풀이"}],"note":"전체 참고사항"}
+
+규칙:
+- 객관식은 answer에 정답 번호(①②③④ 또는 1)2)3)4))와 보기 내용을 함께.
+- 주관식/계산은 최종 답을 answer에 명확히.
+- 화면상의 순서대로 items에 모두 담아.
+- ${detail==='answer' ? 'why는 빈 문자열("")로 두고 정답만 간결히.' : 'why에 한두 문장의 짧은 풀이를.'}
+- 문제가 안 보이거나 흐리면 items는 [] 로 두고 note에 이유를.
+- 특정 문항이 흐려 확신이 낮으면 그 answer 끝에 "(불확실)"을 붙여.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{ 'content-type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body:JSON.stringify({ model:MODELS[speed], max_tokens:1500, messages:[{ role:'user', content:[ { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 } }, { type:'text', text:prompt } ] }] })
+    });
+    if(res.status===401){ setChip(keyChip,'bad','키 오류'); setAnswerRaw('<span class="err">API 키가 올바르지 않아요. ⚙에서 다시 입력해 주세요.</span>'); openSetup(); return; }
+    if(res.status===429){ cooldownUntil=Date.now()+12000; setAnswerRaw('<span class="err">요청이 몰렸어요(429). 잠시 후 자동 재시도합니다…</span>'); return; }
+    if(!res.ok){ let m=''; try{ const j=await res.json(); m=j?.error?.message||''; }catch(e){} setAnswerRaw('<span class="err">인식 실패 (오류 '+res.status+'). '+escapeHtml(m)+'</span>'); return; }
+    const data=await res.json();
+    const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+    let obj=null; try{ obj=JSON.parse(cleanJson(text)); }catch(e){}
+    if(obj && Array.isArray(obj.items)) renderItems(obj);
+    else setAnswerRaw(escapeHtml(text||'문제를 인식하지 못했어요. 다시 비춰 주세요.'),true);
+  }catch(err){ setAnswerRaw('<span class="err">연결 오류예요. 인터넷 상태와 https 접속을 확인해 주세요.</span>'); }
+  finally{ busy=false; cooldownUntil=Math.max(cooldownUntil,Date.now()+COOLDOWN); if(scanMode==='auto' && !paused && apiKey) setPill('same','읽음 · 화면을 넘기면 다시 인식'); }
+}
+
+/* ---- 시작 ---- */
+apiKey=loadKey();
+if(apiKey) setChip(keyChip,'ok','키'); else { setChip(keyChip,'bad','키 없음'); openSetup(); }
+initCamera();
+</script>
+</body>
+</html>
